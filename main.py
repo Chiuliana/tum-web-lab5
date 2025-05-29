@@ -3,6 +3,8 @@ import ssl
 import os
 import json
 import time
+import urllib.parse, argparse
+from bs4 import BeautifulSoup
 
 CACHE_PATH = ".cache.json"
 CACHE_MAX_AGE = 3600 
@@ -186,7 +188,7 @@ def fetch_default(url, accept=None):
     return status_code, headers, body
 
 
-def fetch_cached(url):
+def fetch_cached(url, accept=None):
     cache = get_cache()
     if url in cache:
         cache_time, status_code, headers, body = cache[url]
@@ -194,15 +196,132 @@ def fetch_cached(url):
         if time.time() - cache_time < CACHE_MAX_AGE:
             print(f"Cache hit for URL: {url}")
             return status_code, headers, body
-        else:
-            status_code, headers, body = fetch_default(url)
+    
+    status_code, headers, body = fetch_default(url, accept)
     
     return status_code, headers, body
 
 
-if __name__ == '__main__':
-    status, headers, body = fetch_cached("https://httpbin.org/redirect/4")
-    print(f"Status: {status}")
-    print(f"Headers: {headers}")
-    print(f"Body: ") 
-    print(body)
+def process_body(body, content_type=None):
+    if content_type and 'application/json' in content_type:
+        try:
+            data = json.loads(body)
+            return data  
+        except json.JSONDecodeError:
+            print("Warning: Content-Type indicates JSON but couldn't parse it")
+    
+    soup = BeautifulSoup(body, "html.parser")
+    text = soup.get_text(separator=" ", strip=True)
+    return text
+
+
+def fetch_url(url, accept="text/html,application/json;q=0.9"):
+    status_code, headers, body = fetch_cached(url, accept)
+
+    if status_code is None:
+        print("Failed to get a valid response")
+        return
+        
+    print(f"Status Code: {status_code}")
+    print("Headers:")
+    for key, value in headers.items():
+        print(f"{key}: {value}")
+    
+    content_type = headers.get('Content-Type', '')
+    
+    processed_body = process_body(body, content_type)
+    
+    print("Body:")
+    if isinstance(processed_body, (dict, list)):
+        print(json.dumps(processed_body, indent=2))
+    else:
+        print(processed_body)
+
+
+def extract_search_results(body, result_count=10):
+    soup = BeautifulSoup(body, "html.parser")
+    results = []
+    
+    for i, a in enumerate(soup.select('a.result-link')):
+        if i >= result_count:
+            break
+            
+        link = a.get('href')
+        title = a.get_text(strip=True)
+
+        if link.startswith("//duckduckgo.com/l/?uddg="):
+            encoded_url = link.split("uddg=")[1]
+            if "&" in encoded_url:
+                encoded_url = encoded_url.split("&")[0]
+            actual_url = urllib.parse.unquote(encoded_url)
+            link = actual_url
+        
+        snippet = ""
+        snippet_elem = a.find_next('td', class_='result-snippet')
+        if snippet_elem:
+            snippet = snippet_elem.get_text(strip=True)
+        
+        results.append({
+            'title': title,
+            'link': link,
+            'snippet': snippet
+        })
+    
+    return results
+
+
+def search_duckduckgo(term):
+    # I tried duckduckgo.com but I found it that using the lite version would be easier
+    search_url = f"https://lite.duckduckgo.com/lite/?q={term.replace(' ', '+')}"
+    
+    status_code, headers, body = fetch_cached(search_url)
+    
+    if status_code is None:
+        print("Failed to get a valid response")
+        return []
+    
+    results = extract_search_results(body)
+    
+    print(f"Search Results for '{term}':")
+    for i, result in enumerate(results, 1):
+        print(f"{i}. {result['title']}")
+        print(f"   Link: {result['link']}")
+        if 'snippet' in result and result['snippet']:
+            print(f"   {result['snippet']}")
+        print()
+    
+    return results
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="Go2Web",
+        description="Command Line Program for HTTP requests",
+        epilog="use the -h anytime you need some help",
+    )
+    parser.add_argument(
+        "-u",
+        "--url",
+        help="URL to fetch",
+    )
+    parser.add_argument(
+        "-s",
+        "--search",
+        help="Search for on DuckDuckGo",
+        nargs='+',  
+    )
+
+    args = parser.parse_args()
+
+
+    if args.url:
+        fetch_url(args.url)
+    elif args.search:
+        search_term = " ".join(args.search)
+        search_duckduckgo(search_term)
+    else:
+        parser.print_help()
+
+
+if __name__=="__main__":
+    main()
