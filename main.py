@@ -188,7 +188,7 @@ def fetch_default(url, accept=None):
     return status_code, headers, body
 
 
-def fetch_cached(url):
+def fetch_cached(url, accept=None):
     cache = get_cache()
     if url in cache:
         cache_time, status_code, headers, body = cache[url]
@@ -197,7 +197,7 @@ def fetch_cached(url):
             print(f"Cache hit for URL: {url}")
             return status_code, headers, body
     
-    status_code, headers, body = fetch_default(url)
+    status_code, headers, body = fetch_default(url, accept)
     
     return status_code, headers, body
 
@@ -215,14 +215,28 @@ def process_body(body, content_type=None):
     return text
 
 
+def fetch_url(url, accept="text/html,application/json;q=0.9"):
+    status_code, headers, body = fetch_cached(url, accept)
+
+    if status_code is None:
+        print("Failed to get a valid response")
+        return
+        
+    print(f"Status Code: {status_code}")
+    print("Headers:")
+    for key, value in headers.items():
+        print(f"{key}: {value}")
+    
+    content_type = headers.get('Content-Type', '')
+    
+    processed_body = process_body(body, content_type)
+    
+    print("Body:")
+    if isinstance(processed_body, (dict, list)):
+        print(json.dumps(processed_body, indent=2))
+    else:
+        print(processed_body)
 
 
 if __name__ == '__main__':
-    status, headers, body = fetch_cached("https://httpbin.org/redirect/4")
-    print(f"Status: {status}")
-    print(f"Headers: {headers}")
-    print(f"Body: ") 
-
-    processed_body = process_body(body, headers.get('Content-Type', ''))
-    print(f"Processed Body:") 
-    print(processed_body)  
+    fetch_url("https://httpbin.org/redirect/2")
