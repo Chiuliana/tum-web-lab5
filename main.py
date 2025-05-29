@@ -200,12 +200,29 @@ def fetch_cached(url):
     status_code, headers, body = fetch_default(url)
     
     return status_code, headers, body
+
+
+def process_body(body, content_type=None):
+    if content_type and 'application/json' in content_type:
+        try:
+            data = json.loads(body)
+            return data  
+        except json.JSONDecodeError:
+            print("Warning: Content-Type indicates JSON but couldn't parse it")
     
+    soup = BeautifulSoup(body, "html.parser")
+    text = soup.get_text(separator=" ", strip=True)
+    return text
+
+
 
 
 if __name__ == '__main__':
-    status, headers, body = fetch_cached("https://github.com/Chiuliana/tum-web-lab5/pull/5")
+    status, headers, body = fetch_cached("https://httpbin.org/redirect/4")
     print(f"Status: {status}")
     print(f"Headers: {headers}")
     print(f"Body: ") 
-    print(body)
+
+    processed_body = process_body(body, headers.get('Content-Type', ''))
+    print(f"Processed Body:") 
+    print(processed_body)  
