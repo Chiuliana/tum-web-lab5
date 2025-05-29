@@ -238,5 +238,21 @@ def fetch_url(url, accept="text/html,application/json;q=0.9"):
         print(processed_body)
 
 
+def search_duckduckgo(term):
+    # I tried duckduckgo.com but I found it that using the lite version would be easier
+    search_url = f"https://lite.duckduckgo.com/lite/?q={term.replace(' ', '+')}"
+    
+    status_code, headers, body = fetch_cached(search_url)
+    
+    if status_code is None:
+        print("Failed to get a valid response")
+        return []
+    
+    return body
+
+
 if __name__ == '__main__':
     fetch_url("https://httpbin.org/redirect/2")
+    body = search_duckduckgo("Python programming")
+    print("Search Results Body:")
+    print(body[:500])  # Print the first 500 characters of the search results body
