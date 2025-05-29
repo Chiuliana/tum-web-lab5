@@ -114,10 +114,21 @@ def http_request(
         s.close()
 
 
-def follow_redirects(host, port, path, max_redirects=5, accept=None, protocol="http"):
+def follow_redirects(host, port, path, max_redirects=5, accept=None, protocol="http", visited_urls=None):
+    if visited_urls is None:
+        visited_urls = set()
+    
+    current_url = f"{protocol}://{host}:{port}{path}"
     redirect_count = 0
     
     while redirect_count < max_redirects:
+
+        if current_url in visited_urls:
+            print(f"Warning: Redirect loop detected at {current_url}")
+            return None, None, None
+        
+        visited_urls.add(current_url)
+
         status_code, headers, body = http_request(
             host=host, port=port, path=path, accept=accept, protocol=protocol
         )
