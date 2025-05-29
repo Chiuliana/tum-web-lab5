@@ -1,3 +1,6 @@
+import socket
+import ssl
+
 def extract_request_parts(url):
     # Extract protocol, host, port, and path from a URL depending on its format.
     if "://" in url:
@@ -22,9 +25,73 @@ def extract_request_parts(url):
     return protocol, host, port, path
 
 
+def http_request(
+    host,
+    port=80,
+    path="/",
+    method="GET",
+    headers=None,
+    body=None,
+    timeout=10,
+    accept=None,
+    protocol="http",
+):
+    s = socket.socket()
+    s.settimeout(timeout)
+
+    # Use HTTPS if specified
+    if protocol == "https":
+        context = ssl.create_default_context()
+        s = context.wrap_socket(s, server_hostname=host)
+        if port == 80:  # Use default HTTPS port if standard HTTP port was specified
+            port = 443
+
+    try:
+        s.connect((host, port))
+
+        # Creating the Request structure
+        request = f"{method} {path} HTTP/1.1\r\n"
+        request += f"Host: {host}\r\n"
+        request += "Connection: close\r\n"
+        if accept:
+            request += f"Accept: {accept}\r\n"
+        if headers:
+            for key, value in headers.items():
+                request += f"{key}: {value}\r\n"
+        if body:
+            request += f"Content-Length: {len(body)}\r\n"
+            request += "\r\n"
+            request += body
+        else:
+            request += "\r\n"
+
+        s.sendall(request.encode())
+
+        response = b""
+        while True:
+            chunk = s.recv(4096)
+            if not chunk:
+                break
+            response += chunk
+
+        response = response.decode('utf-8', errors='replace')
+        return response
+
+    finally:
+        s.close()
+
+
 if __name__ == '__main__':
     protocol, host, port, path = extract_request_parts("https://github.com/Chiuliana/tum-web-lab5")
     print(f"Protocol: {protocol}")
     print(f"Host: {host}")
     print(f"Port: {port}")
     print(f"Path: {path}")
+    response = http_request(
+        host=host,
+        port=port,
+        path=path,
+        protocol=protocol
+    )
+    print("Response:")
+    print(response)
