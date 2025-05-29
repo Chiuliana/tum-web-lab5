@@ -3,7 +3,7 @@ import ssl
 import os
 import json
 import time
-import urllib.parse
+import urllib.parse, argparse
 from bs4 import BeautifulSoup
 
 CACHE_PATH = ".cache.json"
@@ -293,6 +293,35 @@ def search_duckduckgo(term):
     return results
 
 
-if __name__ == '__main__':
-    fetch_url("https://httpbin.org/redirect/2")
-    results = search_duckduckgo("Python programming")
+def main():
+    parser = argparse.ArgumentParser(
+        prog="Go2Web",
+        description="Command Line Program for HTTP requests",
+        epilog="use the -h anytime you need some help",
+    )
+    parser.add_argument(
+        "-u",
+        "--url",
+        help="URL to fetch",
+    )
+    parser.add_argument(
+        "-s",
+        "--search",
+        help="Search for on DuckDuckGo",
+        nargs='+',  
+    )
+
+    args = parser.parse_args()
+
+
+    if args.url:
+        fetch_url(args.url)
+    elif args.search:
+        search_term = " ".join(args.search)
+        search_duckduckgo(search_term)
+    else:
+        parser.print_help()
+
+
+if __name__=="__main__":
+    main()
