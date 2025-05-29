@@ -144,6 +144,7 @@ def follow_redirects(host, port, path, max_redirects=5, accept=None, protocol="h
                 redirect_url = f"{protocol}://{redirect_url}"
             
             protocol, host, port, path = extract_request_parts(redirect_url)
+            current_url = redirect_url
             redirect_count += 1
         else:
             return status_code, headers, body
