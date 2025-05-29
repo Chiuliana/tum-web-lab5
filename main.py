@@ -180,8 +180,29 @@ def fetch_default(url, accept=None):
         host=host, port=port, path=path, accept=accept, protocol=protocol
     )
 
+    if status_code:
+        store_in_cache(url, status_code, headers, body)
+
+    return status_code, headers, body
+
+
+def fetch_cached(url):
+    cache = get_cache()
+    if url in cache:
+        cache_time, status_code, headers, body = cache[url]
+
+        if time.time() - cache_time < CACHE_MAX_AGE:
+            print(f"Cache hit for URL: {url}")
+            return status_code, headers, body
+        else:
+            status_code, headers, body = fetch_default(url)
+    
     return status_code, headers, body
 
 
 if __name__ == '__main__':
-    status, headers, body = fetch_default("https://httpbin.org/redirect/4")
+    status, headers, body = fetch_cached("https://httpbin.org/redirect/4")
+    print(f"Status: {status}")
+    print(f"Headers: {headers}")
+    print(f"Body: ") 
+    print(body)
