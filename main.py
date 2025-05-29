@@ -3,6 +3,8 @@ import ssl
 import os
 import json
 import time
+import urllib.parse
+from bs4 import BeautifulSoup
 
 CACHE_PATH = ".cache.json"
 CACHE_MAX_AGE = 3600 
@@ -194,14 +196,15 @@ def fetch_cached(url):
         if time.time() - cache_time < CACHE_MAX_AGE:
             print(f"Cache hit for URL: {url}")
             return status_code, headers, body
-        else:
-            status_code, headers, body = fetch_default(url)
+    
+    status_code, headers, body = fetch_default(url)
     
     return status_code, headers, body
+    
 
 
 if __name__ == '__main__':
-    status, headers, body = fetch_cached("https://httpbin.org/redirect/4")
+    status, headers, body = fetch_cached("https://github.com/Chiuliana/tum-web-lab5/pull/5")
     print(f"Status: {status}")
     print(f"Headers: {headers}")
     print(f"Body: ") 
