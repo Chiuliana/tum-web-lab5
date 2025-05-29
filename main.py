@@ -1,5 +1,11 @@
 import socket
 import ssl
+import os
+import json
+import time
+
+CACHE_PATH = ".cache.json"
+CACHE_MAX_AGE = 3600 
 
 def extract_request_parts(url):
     # Extract protocol, host, port, and path from a URL depending on its format.
@@ -152,18 +158,30 @@ def follow_redirects(host, port, path, max_redirects=5, accept=None, protocol="h
     print(f"Warning: Maximum number of redirects ({max_redirects}) followed.")
     return status_code, headers, body
 
+def get_cache():
+    if not os.path.exists(CACHE_PATH):
+        with open(CACHE_PATH, "w") as f:
+            json.dump({}, f)
+    with open(CACHE_PATH, "r") as f:
+        return json.load(f)
+    
+
+def store_in_cache(url, status_code, headers, body):
+    cache = get_cache()
+    cache[url] = (time.time(), status_code, headers, body)
+    with open(CACHE_PATH, "w") as f:
+        json.dump(cache, f)
+
+
+def fetch_default(url, accept=None):
+    print(f"Fetching URL: {url}")
+    protocol, host, port, path = extract_request_parts(url)
+    status_code, headers, body = follow_redirects(
+        host=host, port=port, path=path, accept=accept, protocol=protocol
+    )
+
+    return status_code, headers, body
 
 
 if __name__ == '__main__':
-    protocol, host, port, path = extract_request_parts("https://httpbin.org/redirect/6")
-    print(f"Protocol: {protocol}")
-    print(f"Host: {host}")
-    print(f"Port: {port}")
-    print(f"Path: {path}")
-    code, headers, body = follow_redirects(
-        host=host, port=port, path=path, accept="text/html", protocol=protocol
-    )
-    print(f"Status Code: {code}")
-    print(f"Headers: {headers}")
-    print(f"Body:") 
-    print(body)
+    status, headers, body = fetch_default("https://httpbin.org/redirect/4")
