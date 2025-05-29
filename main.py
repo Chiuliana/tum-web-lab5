@@ -74,8 +74,41 @@ def http_request(
                 break
             response += chunk
 
-        response = response.decode('utf-8', errors='replace')
-        return response
+        header_end = response.find(b'\r\n\r\n')
+        
+        if header_end == -1:
+            # No header/body separator found
+            return None, None, None
+            
+        headers_data = response[:header_end]
+        body_data = response[header_end + 4:]
+        
+        # Decode headers safely
+        headers_text = headers_data.decode('utf-8', errors='replace')
+        headers = headers_text.split("\r\n")
+        
+        # Parse status code
+        status_line = headers[0]
+        status_parts = status_line.split(" ", 2)
+        if len(status_parts) >= 2:
+            status_code = int(status_parts[1])
+        else:
+            status_code = None
+            
+        # Parse headers into dictionary
+        header_dict = {}
+        for header in headers[1:]:
+            if ": " in header:
+                key, value = header.split(": ", 1)
+                header_dict[key] = value
+        
+        # Try to decode the body - handle potential errors
+        try:
+            body_text = body_data.decode('utf-8', errors='replace')
+        except Exception as e:
+            body_text = f"[Error decoding body: {str(e)}]"
+            
+        return status_code, header_dict, body_text
 
     finally:
         s.close()
@@ -87,11 +120,14 @@ if __name__ == '__main__':
     print(f"Host: {host}")
     print(f"Port: {port}")
     print(f"Path: {path}")
-    response = http_request(
+    code, headers, body = http_request(
         host=host,
         port=port,
         path=path,
+        method="GET",
         protocol=protocol
     )
-    print("Response:")
-    print(response)
+    print(f"Status Code: {code}")
+    print(f"Headers: {headers}")
+    print(f"Body: ")  
+    print(body[:200]) 
