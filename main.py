@@ -114,20 +114,56 @@ def http_request(
         s.close()
 
 
+def follow_redirects(host, port, path, max_redirects=5, accept=None, protocol="http", visited_urls=None):
+    if visited_urls is None:
+        visited_urls = set()
+    
+    current_url = f"{protocol}://{host}:{port}{path}"
+    redirect_count = 0
+    
+    while redirect_count < max_redirects:
+
+        if current_url in visited_urls:
+            print(f"Warning: Redirect loop detected at {current_url}")
+            return None, None, None
+        
+        visited_urls.add(current_url)
+
+        status_code, headers, body = http_request(
+            host=host, port=port, path=path, accept=accept, protocol=protocol
+        )
+        
+        if status_code in (301, 302, 303, 307, 308) and 'Location' in headers: # Check for redirect status codes
+            redirect_url = headers['Location']
+            print(f"Following redirect to: {redirect_url}")
+
+            # Handle relative URLs
+            if redirect_url.startswith('/'):
+                redirect_url = f"{protocol}://{host}:{port}{redirect_url}"
+            elif not redirect_url.startswith(('http://', 'https://')):
+                redirect_url = f"{protocol}://{redirect_url}"
+            
+            protocol, host, port, path = extract_request_parts(redirect_url)
+            current_url = redirect_url
+            redirect_count += 1
+        else:
+            return status_code, headers, body
+    
+    print(f"Warning: Maximum number of redirects ({max_redirects}) followed.")
+    return status_code, headers, body
+
+
+
 if __name__ == '__main__':
-    protocol, host, port, path = extract_request_parts("https://github.com/Chiuliana/tum-web-lab5")
+    protocol, host, port, path = extract_request_parts("https://httpbin.org/redirect/6")
     print(f"Protocol: {protocol}")
     print(f"Host: {host}")
     print(f"Port: {port}")
     print(f"Path: {path}")
-    code, headers, body = http_request(
-        host=host,
-        port=port,
-        path=path,
-        method="GET",
-        protocol=protocol
+    code, headers, body = follow_redirects(
+        host=host, port=port, path=path, accept="text/html", protocol=protocol
     )
     print(f"Status Code: {code}")
     print(f"Headers: {headers}")
-    print(f"Body: ")  
-    print(body[:200]) 
+    print(f"Body:") 
+    print(body)
