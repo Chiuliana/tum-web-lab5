@@ -238,6 +238,38 @@ def fetch_url(url, accept="text/html,application/json;q=0.9"):
         print(processed_body)
 
 
+def extract_search_results(body, result_count=10):
+    soup = BeautifulSoup(body, "html.parser")
+    results = []
+    
+    for i, a in enumerate(soup.select('a.result-link')):
+        if i >= result_count:
+            break
+            
+        link = a.get('href')
+        title = a.get_text(strip=True)
+
+        if link.startswith("//duckduckgo.com/l/?uddg="):
+            encoded_url = link.split("uddg=")[1]
+            if "&" in encoded_url:
+                encoded_url = encoded_url.split("&")[0]
+            actual_url = urllib.parse.unquote(encoded_url)
+            link = actual_url
+        
+        snippet = ""
+        snippet_elem = a.find_next('td', class_='result-snippet')
+        if snippet_elem:
+            snippet = snippet_elem.get_text(strip=True)
+        
+        results.append({
+            'title': title,
+            'link': link,
+            'snippet': snippet
+        })
+    
+    return results
+
+
 def search_duckduckgo(term):
     # I tried duckduckgo.com but I found it that using the lite version would be easier
     search_url = f"https://lite.duckduckgo.com/lite/?q={term.replace(' ', '+')}"
@@ -248,11 +280,19 @@ def search_duckduckgo(term):
         print("Failed to get a valid response")
         return []
     
-    return body
+    results = extract_search_results(body)
+    
+    print(f"Search Results for '{term}':")
+    for i, result in enumerate(results, 1):
+        print(f"{i}. {result['title']}")
+        print(f"   Link: {result['link']}")
+        if 'snippet' in result and result['snippet']:
+            print(f"   {result['snippet']}")
+        print()
+    
+    return results
 
 
 if __name__ == '__main__':
     fetch_url("https://httpbin.org/redirect/2")
-    body = search_duckduckgo("Python programming")
-    print("Search Results Body:")
-    print(body[:500])  # Print the first 500 characters of the search results body
+    results = search_duckduckgo("Python programming")
